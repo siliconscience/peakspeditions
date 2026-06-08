@@ -236,6 +236,22 @@ app.post('/api/blogs/:blogId/posts/:postId/blocks/image', requireAuth, upload.si
   res.status(201).json(block);
 });
 
+// Delete a blog and all its contents
+app.delete('/api/blogs/:blogId', requireAuth, (req, res) => {
+  const dir = blogDir(req.session.username, req.params.blogId);
+  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Not found' });
+  fs.rmSync(dir, { recursive: true, force: true });
+  res.json({ ok: true });
+});
+
+// Delete a post and all its contents
+app.delete('/api/blogs/:blogId/posts/:postId', requireAuth, (req, res) => {
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Not found' });
+  fs.rmSync(dir, { recursive: true, force: true });
+  res.json({ ok: true });
+});
+
 // Update a text block
 app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId', requireAuth, (req, res) => {
   const { text } = req.body;

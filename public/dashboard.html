@@ -63,7 +63,10 @@ async function loadBlogs() {
     <div class="card">
       <h2>${esc(b.name)}</h2>
       <p>${esc(b.purpose) || '<em>No description</em>'}</p>
-      <a href="/blog.html?id=${esc(b.id)}" class="btn btn-secondary btn-sm">Open</a>
+      <div style="display:flex; gap:0.5rem; margin-top:0.5rem">
+        <a href="/blog.html?id=${esc(b.id)}" class="btn btn-secondary btn-sm">Open</a>
+        <button class="btn btn-danger btn-sm" onclick="deleteBlog('${esc(b.id)}', '${esc(b.name)}')">Delete</button>
+      </div>
     </div>
   `).join('');
 }
@@ -94,6 +97,12 @@ function closeModal() {
   document.getElementById('modal').classList.remove('open');
   document.getElementById('blog-form').reset();
   document.getElementById('modal-msg').innerHTML = '';
+}
+
+async function deleteBlog(id, name) {
+  if (!confirm(`Delete "${name}" and all its posts? This cannot be undone.`)) return;
+  const res = await fetch(`/api/blogs/${id}`, { method: 'DELETE' });
+  if (res.ok) loadBlogs();
 }
 
 async function logout() {

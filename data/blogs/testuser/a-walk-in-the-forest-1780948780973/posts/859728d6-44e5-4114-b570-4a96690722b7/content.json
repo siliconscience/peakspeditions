@@ -2,7 +2,7 @@
   {
     "id": "1e5964be-3957-4a1b-8ee6-b2a5bf988327",
     "type": "text",
-    "text": "I took a walk early this morning from 7:30 to 8:30 am.\nI saw a beech tree with pink leaves!"
+    "text": "I took a walk early this morning from 7:30 to 8:30 am.\nI saw a beech tree with pink leaves!\nThey seem to be remnants of growth; they start pink and turn green when mature"
   },
   {
     "id": "1a14af21-af81-498a-ac16-ea739fcae104",
@@ -15,5 +15,11 @@
     "type": "image",
     "filename": "fa05c08d-e46f-4188-a94b-c473cf29604e.jpg",
     "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/fa05c08d-e46f-4188-a94b-c473cf29604e.jpg"
+  },
+  {
+    "id": "81e62648-7679-4fc6-a327-3d3d97e14b83",
+    "type": "image",
+    "filename": "4948f7e8-7e05-402a-84b3-0d3ca2c01b1a.jpg",
+    "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/4948f7e8-7e05-402a-84b3-0d3ca2c01b1a.jpg"
   }
 ]

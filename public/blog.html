@@ -22,6 +22,7 @@
     <h2 id="blog-title"></h2>
     <div style="display:flex; gap:0.5rem; align-items:center">
       <a id="view-blog-link" href="#" class="btn btn-secondary btn-sm">View Blog</a>
+      <button class="btn btn-danger btn-sm" onclick="deleteBlog()">Delete Blog</button>
       <button class="btn btn-primary" onclick="openModal()">+ New Post</button>
     </div>
   </div>
@@ -97,6 +98,7 @@ async function loadPosts() {
       <div style="display:flex; gap:0.5rem; margin-top:0.5rem">
         <a href="/post.html?blog=${esc(blogId)}&post=${esc(p.id)}" class="btn btn-secondary btn-sm">Edit</a>
         <a href="/view-post.html?user=${esc(currentUsername)}&blog=${esc(blogId)}&post=${esc(p.id)}" class="btn btn-secondary btn-sm">View</a>
+        <button class="btn btn-danger btn-sm" onclick="deletePost('${esc(p.id)}', '${esc(p.title)}')">Delete</button>
       </div>
     </div>
   `).join('');
@@ -118,7 +120,27 @@ document.getElementById('post-form').addEventListener('submit', async e => {
   }
 });
 
-function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('post-title').focus(); }
+async function deletePost(id, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${id}`, { method: 'DELETE' });
+  if (res.ok) loadPosts();
+}
+
+async function deleteBlog() {
+  const name = document.getElementById('blog-title').textContent;
+  if (!confirm(`Delete the blog "${name}" and all its posts? This cannot be undone.`)) return;
+  const res = await fetch(`/api/blogs/${blogId}`, { method: 'DELETE' });
+  if (res.ok) window.location.href = '/dashboard.html';
+}
+
+function openModal() {
+  const today = new Date().toISOString().slice(0, 10);
+  const input = document.getElementById('post-title');
+  input.value = today + ' ';
+  document.getElementById('modal').classList.add('open');
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
 function closeModal() { document.getElementById('modal').classList.remove('open'); document.getElementById('post-form').reset(); document.getElementById('modal-msg').innerHTML = ''; }
 
 async function logout() { await fetch('/auth/logout', { method: 'POST' }); window.location.href = '/'; }
