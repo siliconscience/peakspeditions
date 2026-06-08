@@ -45,5 +45,43 @@
         }
       ]
     ]
+  },
+  {
+    "id": "148e8d7f-61dc-4ddc-92a9-2d9f79ed8986",
+    "type": "table",
+    "cols": 3,
+    "rows": [
+      [
+        {
+          "type": "image",
+          "filename": "8de2749a-9008-45ec-9303-e5be6d0b11de.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/8de2749a-9008-45ec-9303-e5be6d0b11de.jpg"
+        },
+        {
+          "type": "image",
+          "filename": "b505d33f-097f-44af-bc23-0e4ea120fb72.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/b505d33f-097f-44af-bc23-0e4ea120fb72.jpg"
+        },
+        {
+          "type": "image",
+          "filename": "1765c958-5839-4708-b712-76fc426502b4.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/1765c958-5839-4708-b712-76fc426502b4.jpg"
+        }
+      ],
+      [
+        {
+          "type": "text",
+          "text": "Some lichen"
+        },
+        {
+          "type": "text",
+          "text": "Some rocks"
+        },
+        {
+          "type": "text",
+          "text": "Some ice"
+        }
+      ]
+    ]
   }
 ]
