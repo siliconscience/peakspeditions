@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog Posts</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Blog</h1>
+  <div class="user-info">
+    <span id="username-display"></span>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="breadcrumb"><a href="/dashboard.html">My Blogs</a> › <span id="blog-name-crumb"></span></div>
+
+  <div class="page-title">
+    <h2 id="blog-title"></h2>
+    <div style="display:flex; gap:0.5rem; align-items:center">
+      <a id="view-blog-link" href="#" class="btn btn-secondary btn-sm">View Blog</a>
+      <button class="btn btn-primary" onclick="openModal()">+ New Post</button>
+    </div>
+  </div>
+
+  <p id="blog-purpose" style="color:#666; margin-bottom:1.25rem"></p>
+
+  <div id="posts-list"></div>
+</div>
+
+<!-- New Post Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Create a Post</h3>
+    <div id="modal-msg"></div>
+    <form id="post-form">
+      <label>Title</label>
+      <input type="text" id="post-title" required placeholder="Post title">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const blogId = params.get('id');
+if (!blogId) window.location.href = '/dashboard.html';
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let currentUsername = null;
+
+async function init() {
+  const me = await fetch('/auth/me');
+  if (!me.ok) { window.location.href = '/'; return; }
+  const { username } = await me.json();
+  currentUsername = username;
+  document.getElementById('username-display').textContent = username;
+  loadBlog();
+}
+
+async function loadBlog() {
+  const res = await fetch('/api/blogs');
+  const blogs = await res.json();
+  const blog = blogs.find(b => b.id === blogId);
+  if (!blog) { window.location.href = '/dashboard.html'; return; }
+  document.title = blog.name;
+  document.getElementById('blog-title').textContent = blog.name;
+  document.getElementById('blog-name-crumb').textContent = blog.name;
+  document.getElementById('blog-purpose').textContent = blog.purpose || '';
+  document.getElementById('view-blog-link').href =
+    `/view-blog.html?user=${encodeURIComponent(currentUsername)}&blog=${encodeURIComponent(blogId)}`;
+  loadPosts();
+}
+
+async function loadPosts() {
+  const res = await fetch(`/api/blogs/${blogId}/posts`);
+  const posts = await res.json();
+  const el = document.getElementById('posts-list');
+  if (!posts.length) {
+    el.innerHTML = '<p style="color:#888">No posts yet. Create the first one!</p>';
+    return;
+  }
+  el.innerHTML = posts.map(p => `
+    <div class="card">
+      <h2>${esc(p.title)}</h2>
+      <p>${new Date(p.createdAt).toLocaleDateString()}</p>
+      <div style="display:flex; gap:0.5rem; margin-top:0.5rem">
+        <a href="/post.html?blog=${esc(blogId)}&post=${esc(p.id)}" class="btn btn-secondary btn-sm">Edit</a>
+        <a href="/view-post.html?user=${esc(currentUsername)}&blog=${esc(blogId)}&post=${esc(p.id)}" class="btn btn-secondary btn-sm">View</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('post-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = await fetch(`/api/blogs/${blogId}/posts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: document.getElementById('post-title').value })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    closeModal();
+    window.location.href = `/post.html?blog=${blogId}&post=${data.id}`;
+  } else {
+    document.getElementById('modal-msg').innerHTML = `<div class="error-msg">${data.error}</div>`;
+  }
+});
+
+function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('post-title').focus(); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); document.getElementById('post-form').reset(); document.getElementById('modal-msg').innerHTML = ''; }
+
+async function logout() { await fetch('/auth/logout', { method: 'POST' }); window.location.href = '/'; }
+
+init();
+</script>
+</body>
+</html>

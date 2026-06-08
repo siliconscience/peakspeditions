@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Blog</h1>
+  <div class="user-info">
+    <span id="username-display"></span>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="page-title">
+    <h2>My Blogs</h2>
+    <button class="btn btn-primary" onclick="openModal()">+ New Blog</button>
+  </div>
+
+  <div id="blogs-list"></div>
+</div>
+
+<!-- New Blog Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Create a Blog</h3>
+    <div id="modal-msg"></div>
+    <form id="blog-form">
+      <label>Name</label>
+      <input type="text" id="blog-name" required placeholder="My Travel Journal">
+      <label>Purpose / Description</label>
+      <textarea id="blog-purpose" placeholder="What is this blog about?"></textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+async function init() {
+  const me = await fetch('/auth/me');
+  if (!me.ok) { window.location.href = '/'; return; }
+  const { username } = await me.json();
+  document.getElementById('username-display').textContent = username;
+  loadBlogs();
+}
+
+async function loadBlogs() {
+  const res = await fetch('/api/blogs');
+  const blogs = await res.json();
+  const el = document.getElementById('blogs-list');
+  if (!blogs.length) {
+    el.innerHTML = '<p style="color:#888">No blogs yet. Create one to get started.</p>';
+    return;
+  }
+  el.innerHTML = blogs.map(b => `
+    <div class="card">
+      <h2>${esc(b.name)}</h2>
+      <p>${esc(b.purpose) || '<em>No description</em>'}</p>
+      <a href="/blog.html?id=${esc(b.id)}" class="btn btn-secondary btn-sm">Open</a>
+    </div>
+  `).join('');
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('blog-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = await fetch('/api/blogs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: document.getElementById('blog-name').value, purpose: document.getElementById('blog-purpose').value })
+  });
+  const data = await res.json();
+  if (res.ok) { closeModal(); loadBlogs(); }
+  else document.getElementById('modal-msg').innerHTML = `<div class="error-msg">${data.error}</div>`;
+});
+
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('blog-name').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('blog-form').reset();
+  document.getElementById('modal-msg').innerHTML = '';
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+}
+
+init();
+</script>
+</body>
+</html>

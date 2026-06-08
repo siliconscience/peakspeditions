@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1 id="blog-title">Blog</h1>
+  <div class="user-info" id="header-actions"></div>
+</header>
+
+<div class="container">
+  <p id="blog-purpose" style="color:#666; margin-bottom:1.5rem; font-style:italic"></p>
+  <div id="posts-list"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const username = params.get('user');
+const blogId = params.get('blog');
+if (!username || !blogId) window.location.href = '/';
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function init() {
+  // Show edit link if the viewer is the blog owner
+  const me = await fetch('/auth/me').then(r => r.ok ? r.json() : null);
+  if (me && me.username === username) {
+    document.getElementById('header-actions').innerHTML =
+      `<a href="/blog.html?id=${esc(blogId)}" class="btn btn-secondary btn-sm">Edit Blog</a>`;
+  }
+
+  const res = await fetch(`/api/view/${username}/${blogId}`);
+  if (!res.ok) { document.getElementById('posts-list').textContent = 'Blog not found.'; return; }
+  const blog = await res.json();
+
+  document.title = blog.name;
+  document.getElementById('blog-title').textContent = blog.name;
+  if (blog.purpose) document.getElementById('blog-purpose').textContent = blog.purpose;
+
+  const postsRes = await fetch(`/api/view/${username}/${blogId}/posts`);
+  const posts = await postsRes.json();
+  const el = document.getElementById('posts-list');
+
+  if (!posts.length) {
+    el.innerHTML = '<p style="color:#aaa">No posts yet.</p>';
+    return;
+  }
+
+  el.innerHTML = posts.map(p => `
+    <div class="card">
+      <h2>${esc(p.title)}</h2>
+      <p style="font-size:0.85rem; color:#888">${new Date(p.createdAt).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' })}</p>
+      <a href="/view-post.html?user=${esc(username)}&blog=${esc(blogId)}&post=${esc(p.id)}" class="btn btn-secondary btn-sm" style="margin-top:0.5rem">Read</a>
+    </div>
+  `).join('');
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1 id="blog-name-header" style="cursor:pointer"></h1>
+  <div class="user-info" id="header-actions"></div>
+</header>
+
+<div class="container">
+  <div class="breadcrumb">
+    <a href="#" id="back-link">← Back to blog</a>
+  </div>
+
+  <h2 id="post-title" style="margin-bottom:0.25rem"></h2>
+  <p id="post-date" style="color:#888; font-size:0.85rem; margin-bottom:1.5rem"></p>
+
+  <div id="post-content"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const username = params.get('user');
+const blogId = params.get('blog');
+const postId = params.get('post');
+if (!username || !blogId || !postId) window.location.href = '/';
+
+const blogHomeUrl = `/view-blog.html?user=${encodeURIComponent(username)}&blog=${encodeURIComponent(blogId)}`;
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function init() {
+  document.getElementById('back-link').href = blogHomeUrl;
+
+  // Show edit link if viewer is the owner
+  const me = await fetch('/auth/me').then(r => r.ok ? r.json() : null);
+  if (me && me.username === username) {
+    document.getElementById('header-actions').innerHTML =
+      `<a href="/post.html?blog=${esc(blogId)}&post=${esc(postId)}" class="btn btn-secondary btn-sm">Edit Post</a>`;
+  }
+
+  // Load blog name for header
+  const blogRes = await fetch(`/api/view/${username}/${blogId}`);
+  if (blogRes.ok) {
+    const blog = await blogRes.json();
+    const header = document.getElementById('blog-name-header');
+    header.textContent = blog.name;
+    header.onclick = () => window.location.href = blogHomeUrl;
+  }
+
+  const res = await fetch(`/api/view/${username}/${blogId}/posts/${postId}`);
+  if (!res.ok) { document.getElementById('post-content').textContent = 'Post not found.'; return; }
+  const post = await res.json();
+
+  document.title = post.title;
+  document.getElementById('post-title').textContent = post.title;
+  document.getElementById('post-date').textContent =
+    new Date(post.createdAt).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+
+  const el = document.getElementById('post-content');
+  if (!post.content.length) {
+    el.innerHTML = '<p style="color:#aaa; font-style:italic">This post has no content yet.</p>';
+    return;
+  }
+
+  el.innerHTML = post.content.map(b => {
+    if (b.type === 'text') return `<div class="block"><p>${esc(b.text)}</p></div>`;
+    if (b.type === 'image') return `<div class="block"><img src="${esc(b.url)}" alt=""></div>`;
+    return '';
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

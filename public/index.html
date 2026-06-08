@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog – Sign In</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-wrapper">
+  <h1>Blog</h1>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" id="tab-login" onclick="showTab('login')">Sign In</div>
+      <div class="tab" id="tab-register" onclick="showTab('register')">Register</div>
+    </div>
+
+    <div id="msg"></div>
+
+    <form id="login-form">
+      <label>Username</label>
+      <input type="text" id="login-username" required autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="login-password" required autocomplete="current-password">
+      <button type="submit" class="btn btn-primary" style="width:100%">Sign In</button>
+    </form>
+
+    <form id="register-form" style="display:none">
+      <label>Username</label>
+      <input type="text" id="reg-username" required autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="reg-password" required autocomplete="new-password">
+      <button type="submit" class="btn btn-primary" style="width:100%">Create Account</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function showTab(tab) {
+  document.getElementById('login-form').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('msg').innerHTML = '';
+}
+
+function showMsg(text, type) {
+  document.getElementById('msg').innerHTML = `<div class="${type}-msg">${text}</div>`;
+}
+
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: document.getElementById('login-username').value, password: document.getElementById('login-password').value })
+  });
+  const data = await res.json();
+  if (res.ok) window.location.href = '/dashboard.html';
+  else showMsg(data.error, 'error');
+});
+
+document.getElementById('register-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const res = await fetch('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: document.getElementById('reg-username').value, password: document.getElementById('reg-password').value })
+  });
+  const data = await res.json();
+  if (res.ok) window.location.href = '/dashboard.html';
+  else showMsg(data.error, 'error');
+});
+
+// Redirect if already logged in
+fetch('/auth/me').then(r => { if (r.ok) window.location.href = '/dashboard.html'; });
+</script>
+</body>
+</html>
