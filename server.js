@@ -55,6 +55,12 @@ function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+function spliceBlock(content, block, insertAt) {
+  const pos = parseInt(insertAt);
+  if (!isNaN(pos) && pos >= 0 && pos <= content.length) content.splice(pos, 0, block);
+  else content.push(block);
+}
+
 // --- Middleware ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -214,7 +220,7 @@ app.post('/api/blogs/:blogId/posts/:postId/blocks/text', requireAuth, (req, res)
   const contentFile = path.join(dir, 'content.json');
   const content = readJson(contentFile);
   const block = { id: uuidv4(), type: 'text', text };
-  content.push(block);
+  spliceBlock(content, block, req.body.insertAt);
   writeJson(contentFile, content);
 
   res.status(201).json(block);
@@ -230,7 +236,7 @@ app.post('/api/blogs/:blogId/posts/:postId/blocks/image', requireAuth, upload.si
 
   const imageUrl = `/data/blogs/${req.session.username}/${req.params.blogId}/posts/${req.params.postId}/images/${req.file.filename}`;
   const block = { id: uuidv4(), type: 'image', filename: req.file.filename, url: imageUrl };
-  content.push(block);
+  spliceBlock(content, block, req.body.insertAt);
   writeJson(contentFile, content);
 
   res.status(201).json(block);
@@ -372,7 +378,7 @@ app.post('/api/blogs/:blogId/posts/:postId/blocks/gallery', requireAuth, upload.
   const contentFile = path.join(dir, 'content.json');
   const content = readJson(contentFile);
   const block = { id: uuidv4(), type: 'table', cols: 3, rows };
-  content.push(block);
+  spliceBlock(content, block, req.body.insertAt);
   writeJson(contentFile, content);
   res.status(201).json(block);
 });
@@ -388,7 +394,7 @@ app.post('/api/blogs/:blogId/posts/:postId/blocks/table', requireAuth, (req, res
   const contentFile = path.join(dir, 'content.json');
   const content = readJson(contentFile);
   const block = { id: uuidv4(), type: 'table', cols, rows: [new Array(cols).fill(null)] };
-  content.push(block);
+  spliceBlock(content, block, req.body.insertAt);
   writeJson(contentFile, content);
   res.status(201).json(block);
 });

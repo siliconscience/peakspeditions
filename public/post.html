@@ -104,6 +104,8 @@ let postContent = [];
 let editingBlockId = null;
 let selectedImageId = null;
 let replacingBlockId = null;
+let activeGutterIdx = null;
+let pendingInsertAt = null;
 
 async function init() {
   const me = await fetch('/auth/me');
@@ -133,14 +135,67 @@ function renderContent(blocks) {
   postContent = blocks;
   const el = document.getElementById('post-content');
   if (!blocks.length) {
-    el.innerHTML = '<p style="color:#aaa; font-style:italic">No content yet — add a block below.</p>';
+    el.innerHTML = renderGutter(0) + '<p style="color:#aaa; font-style:italic; padding:0.25rem 0">No content yet — add a block below or click + above.</p>';
     return;
   }
-  el.innerHTML = blocks.map(renderBlock).join('');
+  let html = '';
+  blocks.forEach((b, i) => { html += renderGutter(i) + renderBlock(b); });
+  html += renderGutter(blocks.length);
+  el.innerHTML = html;
   if (editingBlockId) {
     const ta = document.getElementById(`edit-ta-${editingBlockId}`);
     if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
   }
+}
+
+function renderGutter(idx) {
+  if (activeGutterIdx === idx) {
+    return `<div class="gutter gutter-open" onclick="event.stopPropagation()">
+      <button class="btn btn-secondary btn-sm" onclick="insertTextAt(${idx})">Text</button>
+      <button class="btn btn-secondary btn-sm" onclick="insertImageAt(${idx})">Image</button>
+      <button class="btn btn-secondary btn-sm" onclick="insertTableAt(${idx})">Table</button>
+      <button class="btn btn-secondary btn-sm" onclick="insertGalleryAt(${idx})">Gallery</button>
+      <button class="btn btn-secondary btn-sm" style="color:#999" onclick="closeGutter()">✕</button>
+    </div>`;
+  }
+  return `<div class="gutter" onclick="activateGutter(${idx}, event)"></div>`;
+}
+
+function activateGutter(idx, e) {
+  e.stopPropagation();
+  activeGutterIdx = idx;
+  renderContent(postContent);
+}
+
+function closeGutter() {
+  activeGutterIdx = null;
+  renderContent(postContent);
+}
+
+document.addEventListener('click', () => {
+  if (activeGutterIdx !== null) { activeGutterIdx = null; renderContent(postContent); }
+});
+
+function insertTextAt(idx) {
+  activeGutterIdx = null; pendingInsertAt = idx;
+  renderContent(postContent);
+  document.getElementById('text-modal').classList.add('open');
+  document.getElementById('text-input').focus();
+}
+function insertImageAt(idx) {
+  activeGutterIdx = null; pendingInsertAt = idx;
+  renderContent(postContent);
+  document.getElementById('image-input').click();
+}
+function insertTableAt(idx) {
+  activeGutterIdx = null; pendingInsertAt = idx;
+  renderContent(postContent);
+  document.getElementById('table-modal').classList.add('open');
+}
+function insertGalleryAt(idx) {
+  activeGutterIdx = null; pendingInsertAt = idx;
+  renderContent(postContent);
+  document.getElementById('gallery-input').click();
 }
 
 function renderBlock(b) {
@@ -368,16 +423,19 @@ document.getElementById('cell-image-input').addEventListener('change', async e =
 async function createTable() {
   const cols = document.querySelector('input[name="cols"]:checked')?.value;
   if (!cols) return;
+  const pos = pendingInsertAt; pendingInsertAt = null;
+  const body = { cols: parseInt(cols) };
+  if (pos !== null) body.insertAt = pos;
   const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/table`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cols: parseInt(cols) })
+    body: JSON.stringify(body)
   });
   if (res.ok) { closeTableModal(); loadPost(); }
 }
 
-function openTableModal() { document.getElementById('table-modal').classList.add('open'); }
-function closeTableModal() { document.getElementById('table-modal').classList.remove('open'); }
+function openTableModal() { pendingInsertAt = null; document.getElementById('table-modal').classList.add('open'); }
+function closeTableModal() { pendingInsertAt = null; document.getElementById('table-modal').classList.remove('open'); }
 
 // --- Text block editing ---
 function startEditText(id) {
@@ -441,10 +499,13 @@ document.getElementById('replace-image-input').addEventListener('change', async 
 document.getElementById('text-form').addEventListener('submit', async e => {
   e.preventDefault();
   const text = document.getElementById('text-input').value;
+  const pos = pendingInsertAt; pendingInsertAt = null;
+  const body = { text };
+  if (pos !== null) body.insertAt = pos;
   const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/text`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+    body: JSON.stringify(body)
   });
   if (res.ok) { closeTextModal(); loadPost(); }
   else {
@@ -453,18 +514,20 @@ document.getElementById('text-form').addEventListener('submit', async e => {
   }
 });
 
-function openTextModal() { document.getElementById('text-modal').classList.add('open'); document.getElementById('text-input').focus(); }
-function closeTextModal() { document.getElementById('text-modal').classList.remove('open'); document.getElementById('text-form').reset(); document.getElementById('text-modal-msg').innerHTML = ''; }
+function openTextModal() { pendingInsertAt = null; document.getElementById('text-modal').classList.add('open'); document.getElementById('text-input').focus(); }
+function closeTextModal() { pendingInsertAt = null; document.getElementById('text-modal').classList.remove('open'); document.getElementById('text-form').reset(); document.getElementById('text-modal-msg').innerHTML = ''; }
 
-function openImagePicker() { document.getElementById('image-input').click(); }
+function openImagePicker() { pendingInsertAt = null; document.getElementById('image-input').click(); }
 
-function openGalleryPicker() { document.getElementById('gallery-input').click(); }
+function openGalleryPicker() { pendingInsertAt = null; document.getElementById('gallery-input').click(); }
 
 document.getElementById('gallery-input').addEventListener('change', async e => {
   const files = e.target.files;
   if (!files.length) return;
+  const pos = pendingInsertAt; pendingInsertAt = null;
   const form = new FormData();
   for (const file of files) form.append('images', file);
+  if (pos !== null) form.append('insertAt', pos);
   const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/gallery`, { method: 'POST', body: form });
   if (res.ok) loadPost();
   else { const d = await res.json(); alert('Upload failed: ' + d.error); }
@@ -474,8 +537,10 @@ document.getElementById('gallery-input').addEventListener('change', async e => {
 document.getElementById('image-input').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
+  const pos = pendingInsertAt; pendingInsertAt = null;
   const form = new FormData();
   form.append('image', file);
+  if (pos !== null) form.append('insertAt', pos);
   const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/image`, { method: 'POST', body: form });
   if (res.ok) loadPost();
   else { const d = await res.json(); alert('Upload failed: ' + d.error); }
