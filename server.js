@@ -319,6 +319,31 @@ app.delete('/api/blogs/:blogId/posts/:postId/blocks/:blockId', requireAuth, (req
   res.json({ ok: true });
 });
 
+// Create a gallery — uploads images and builds a 3-column table block in one step
+app.post('/api/blogs/:blogId/posts/:postId/blocks/gallery', requireAuth, upload.array('images', 50), (req, res) => {
+  if (!req.files || !req.files.length) return res.status(400).json({ error: 'No images provided' });
+
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Post not found' });
+
+  const base = `/data/blogs/${req.session.username}/${req.params.blogId}/posts/${req.params.postId}/images/`;
+  const cells = req.files.map(f => ({ type: 'image', filename: f.filename, url: base + f.filename }));
+
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 3) {
+    const row = cells.slice(i, i + 3);
+    while (row.length < 3) row.push(null);
+    rows.push(row);
+  }
+
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = { id: uuidv4(), type: 'table', cols: 3, rows };
+  content.push(block);
+  writeJson(contentFile, content);
+  res.status(201).json(block);
+});
+
 // Create a table block
 app.post('/api/blogs/:blogId/posts/:postId/blocks/table', requireAuth, (req, res) => {
   const cols = parseInt(req.body.cols);

@@ -35,6 +35,7 @@
       <button class="btn btn-secondary" onclick="openTextModal()">+ Text Block</button>
       <button class="btn btn-secondary" onclick="openImagePicker()">+ Image</button>
       <button class="btn btn-secondary" onclick="openTableModal()">+ Table</button>
+      <button class="btn btn-secondary" onclick="openGalleryPicker()">+ Gallery</button>
     </div>
   </div>
 </div>
@@ -85,6 +86,7 @@
 <input type="file" id="image-input" accept="image/*" style="display:none">
 <input type="file" id="replace-image-input" accept="image/*" style="display:none">
 <input type="file" id="cell-image-input" accept="image/*" style="display:none">
+<input type="file" id="gallery-input" accept="image/*" multiple style="display:none">
 
 <script>
 const params = new URLSearchParams(location.search);
@@ -412,6 +414,19 @@ function openTextModal() { document.getElementById('text-modal').classList.add('
 function closeTextModal() { document.getElementById('text-modal').classList.remove('open'); document.getElementById('text-form').reset(); document.getElementById('text-modal-msg').innerHTML = ''; }
 
 function openImagePicker() { document.getElementById('image-input').click(); }
+
+function openGalleryPicker() { document.getElementById('gallery-input').click(); }
+
+document.getElementById('gallery-input').addEventListener('change', async e => {
+  const files = e.target.files;
+  if (!files.length) return;
+  const form = new FormData();
+  for (const file of files) form.append('images', file);
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/gallery`, { method: 'POST', body: form });
+  if (res.ok) loadPost();
+  else { const d = await res.json(); alert('Upload failed: ' + d.error); }
+  e.target.value = '';
+});
 
 document.getElementById('image-input').addEventListener('change', async e => {
   const file = e.target.files[0];
