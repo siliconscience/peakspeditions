@@ -319,6 +319,39 @@ app.delete('/api/blogs/:blogId/posts/:postId/blocks/:blockId', requireAuth, (req
   res.json({ ok: true });
 });
 
+// Reorder cells within a table block
+app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/order', requireAuth, (req, res) => {
+  const from = parseInt(req.body.from);
+  const to   = parseInt(req.body.to);
+  if (isNaN(from) || isNaN(to) || from === to) return res.json({ ok: true });
+
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block) return res.status(404).json({ error: 'Table not found' });
+
+  const flat = block.rows.flat();
+  if (from < 0 || from >= flat.length || to < 0 || to >= flat.length) {
+    return res.status(400).json({ error: 'Index out of range' });
+  }
+
+  const [item] = flat.splice(from, 1);
+  flat.splice(to, 0, item);
+
+  const rows = [];
+  for (let i = 0; i < flat.length; i += block.cols) {
+    const row = flat.slice(i, i + block.cols);
+    while (row.length < block.cols) row.push(null);
+    rows.push(row);
+  }
+  while (rows.length > 1 && rows[rows.length - 1].every(c => c === null)) rows.pop();
+  block.rows = rows;
+
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
 // Create a gallery — uploads images and builds a 3-column table block in one step
 app.post('/api/blogs/:blogId/posts/:postId/blocks/gallery', requireAuth, upload.array('images', 50), (req, res) => {
   if (!req.files || !req.files.length) return res.status(400).json({ error: 'No images provided' });

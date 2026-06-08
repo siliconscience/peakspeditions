@@ -178,7 +178,7 @@ function renderBlock(b) {
   if (b.type === 'table') {
     const rows = b.rows.map((row, ri) => `
       <tr>
-        ${row.map((cell, ci) => renderTableCell(b.id, ri, ci, cell)).join('')}
+        ${row.map((cell, ci) => renderTableCell(b.id, ri, ci, cell, ri * b.cols + ci)).join('')}
         <td class="table-row-del">
           <button class="btn btn-danger btn-sm" title="Delete row"
             onclick="event.stopPropagation(); deleteTableRow('${esc(b.id)}', ${ri})">×</button>
@@ -199,19 +199,62 @@ function renderBlock(b) {
 }
 
 // --- Table cell renderer (editor view) ---
-function renderTableCell(blockId, row, col, cell) {
+function renderTableCell(blockId, row, col, cell, flatIdx) {
   const id = esc(blockId);
   const onclick = `openCellModal('${id}', ${row}, ${col})`;
+  const drag = `draggable="true"
+    ondragstart="cellDragStart(event,'${id}',${flatIdx})"
+    ondragover="cellDragOver(event)"
+    ondragleave="cellDragLeave(event)"
+    ondrop="cellDrop(event,'${id}',${flatIdx})"
+    ondragend="cellDragEnd(event)"`;
   if (!cell) {
-    return `<td class="table-cell table-cell-empty" onclick="${onclick}"><span class="cell-add">+</span></td>`;
+    return `<td class="table-cell table-cell-empty" onclick="${onclick}" ${drag}><span class="cell-add">+</span></td>`;
   }
   if (cell.type === 'text') {
-    return `<td class="table-cell table-cell-filled" onclick="${onclick}"><p>${esc(cell.text)}</p></td>`;
+    return `<td class="table-cell table-cell-filled" onclick="${onclick}" ${drag}><p>${esc(cell.text)}</p></td>`;
   }
   if (cell.type === 'image') {
-    return `<td class="table-cell table-cell-filled" onclick="${onclick}"><img src="${esc(cell.url)}" alt="" class="cell-img"></td>`;
+    return `<td class="table-cell table-cell-filled" onclick="${onclick}" ${drag}><img src="${esc(cell.url)}" alt="" class="cell-img"></td>`;
   }
-  return '<td class="table-cell"></td>';
+  return `<td class="table-cell" ${drag}></td>`;
+}
+
+// --- Drag-and-drop cell reorder ---
+let dragSrc = null; // { blockId, flatIdx }
+
+function cellDragStart(e, blockId, flatIdx) {
+  dragSrc = { blockId, flatIdx };
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function cellDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function cellDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+function cellDrop(e, blockId, flatIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragSrc || dragSrc.blockId !== blockId || dragSrc.flatIdx === flatIdx) return;
+  fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/order`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: dragSrc.flatIdx, to: flatIdx })
+  }).then(r => { if (r.ok) loadPost(); });
+  dragSrc = null;
+}
+
+function cellDragEnd(e) {
+  e.currentTarget.classList.remove('drag-over');
+  dragSrc = null;
 }
 
 // --- Table row management ---

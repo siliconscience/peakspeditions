@@ -156,6 +156,8 @@ form textarea { min-height: 6rem; resize: vertical; }
 .table-cell-filled p { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; }
 .cell-img { max-width: 100%; display: block; }
 .table-row-del { width: 32px; text-align: center; vertical-align: middle; border: none !important; padding: 0 2px; }
+.table-cell[draggable] { cursor: grab; }
+.table-cell.drag-over { outline: 2px solid #555; outline-offset: -2px; background: #f0f0f0; }
 
 /* Block editing */
 .block-editable { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
