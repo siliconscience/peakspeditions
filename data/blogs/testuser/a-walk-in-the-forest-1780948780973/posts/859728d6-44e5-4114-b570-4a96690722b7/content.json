@@ -21,5 +21,29 @@
     "type": "image",
     "filename": "4948f7e8-7e05-402a-84b3-0d3ca2c01b1a.jpg",
     "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/4948f7e8-7e05-402a-84b3-0d3ca2c01b1a.jpg"
+  },
+  {
+    "id": "bc3ea5ef-c655-4622-9caf-c4848134e913",
+    "type": "table",
+    "cols": 3,
+    "rows": [
+      [
+        {
+          "type": "image",
+          "filename": "65609556-01f4-4b81-8713-9b950a5a7cac.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/65609556-01f4-4b81-8713-9b950a5a7cac.jpg"
+        },
+        {
+          "type": "image",
+          "filename": "628a2b21-e6fe-4393-9f13-8446830fd49b.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/628a2b21-e6fe-4393-9f13-8446830fd49b.jpg"
+        },
+        {
+          "type": "image",
+          "filename": "ad2efcdf-1ae9-41f1-9c03-eca767b615d1.jpg",
+          "url": "/data/blogs/testuser/a-walk-in-the-forest-1780948780973/posts/859728d6-44e5-4114-b570-4a96690722b7/images/ad2efcdf-1ae9-41f1-9c03-eca767b615d1.jpg"
+        }
+      ]
+    ]
   }
 ]

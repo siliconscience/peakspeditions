@@ -34,6 +34,7 @@
     <div class="block-buttons">
       <button class="btn btn-secondary" onclick="openTextModal()">+ Text Block</button>
       <button class="btn btn-secondary" onclick="openImagePicker()">+ Image</button>
+      <button class="btn btn-secondary" onclick="openTableModal()">+ Table</button>
     </div>
   </div>
 </div>
@@ -54,9 +55,36 @@
   </div>
 </div>
 
+<!-- Table creation modal -->
+<div class="modal-overlay" id="table-modal">
+  <div class="modal">
+    <h3>Create Table</h3>
+    <label style="margin-bottom:0.5rem; display:block">Number of columns</label>
+    <div style="display:flex; gap:1rem; margin-bottom:1rem">
+      <label style="font-weight:normal"><input type="radio" name="cols" value="1"> 1</label>
+      <label style="font-weight:normal"><input type="radio" name="cols" value="2"> 2</label>
+      <label style="font-weight:normal"><input type="radio" name="cols" value="3" checked> 3</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeTableModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createTable()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cell editor modal -->
+<div class="modal-overlay" id="cell-modal">
+  <div class="modal">
+    <h3 id="cell-modal-title">Cell</h3>
+    <div id="cell-modal-body"></div>
+    <div class="modal-actions" id="cell-modal-actions"></div>
+  </div>
+</div>
+
 <!-- Hidden file inputs -->
 <input type="file" id="image-input" accept="image/*" style="display:none">
 <input type="file" id="replace-image-input" accept="image/*" style="display:none">
+<input type="file" id="cell-image-input" accept="image/*" style="display:none">
 
 <script>
 const params = new URLSearchParams(location.search);
@@ -145,8 +173,166 @@ function renderBlock(b) {
         </div>` : ''}
       </div>`;
   }
+  if (b.type === 'table') {
+    const rows = b.rows.map((row, ri) => `
+      <tr>
+        ${row.map((cell, ci) => renderTableCell(b.id, ri, ci, cell)).join('')}
+        <td class="table-row-del">
+          <button class="btn btn-danger btn-sm" title="Delete row"
+            onclick="event.stopPropagation(); deleteTableRow('${esc(b.id)}', ${ri})">×</button>
+        </td>
+      </tr>`).join('');
+    return `
+      <div class="block">
+        <div class="block-label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Table (${b.cols} col${b.cols > 1 ? 's' : ''})</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteBlock('${esc(b.id)}')">Delete Table</button>
+        </div>
+        <table class="content-table"><tbody>${rows}</tbody></table>
+        <button class="btn btn-secondary btn-sm" style="margin-top:0.5rem"
+          onclick="addTableRow('${esc(b.id)}')">+ Add Row</button>
+      </div>`;
+  }
   return '';
 }
+
+// --- Table cell renderer (editor view) ---
+function renderTableCell(blockId, row, col, cell) {
+  const id = esc(blockId);
+  const onclick = `openCellModal('${id}', ${row}, ${col})`;
+  if (!cell) {
+    return `<td class="table-cell table-cell-empty" onclick="${onclick}"><span class="cell-add">+</span></td>`;
+  }
+  if (cell.type === 'text') {
+    return `<td class="table-cell table-cell-filled" onclick="${onclick}"><p>${esc(cell.text)}</p></td>`;
+  }
+  if (cell.type === 'image') {
+    return `<td class="table-cell table-cell-filled" onclick="${onclick}"><img src="${esc(cell.url)}" alt="" class="cell-img"></td>`;
+  }
+  return '<td class="table-cell"></td>';
+}
+
+// --- Table row management ---
+async function addTableRow(blockId) {
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/rows`, { method: 'POST' });
+  if (res.ok) loadPost();
+}
+
+async function deleteTableRow(blockId, row) {
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/rows/${row}`, { method: 'DELETE' });
+  if (res.ok) loadPost();
+}
+
+// --- Cell editor ---
+let cellCtx = null; // { blockId, row, col }
+
+function openCellModal(blockId, row, col) {
+  editingBlockId = null;
+  selectedImageId = null;
+  cellCtx = { blockId, row, col };
+
+  const block = postContent.find(b => b.id === blockId);
+  const cell = block ? block.rows[row][col] : null;
+
+  const title = document.getElementById('cell-modal-title');
+  const body = document.getElementById('cell-modal-body');
+  const actions = document.getElementById('cell-modal-actions');
+
+  if (!cell) {
+    title.textContent = 'Add to Cell';
+    body.innerHTML = `
+      <div class="block-buttons" style="margin-bottom:0.75rem">
+        <button class="btn btn-secondary" onclick="showCellTextInput()">Text</button>
+        <button class="btn btn-secondary" onclick="pickCellImage()">Image</button>
+      </div>
+      <div id="cell-text-area" style="display:none">
+        <textarea id="cell-text-input" placeholder="Enter text..."></textarea>
+      </div>`;
+    actions.innerHTML = `<button class="btn btn-secondary" onclick="closeCellModal()">Cancel</button>`;
+  } else if (cell.type === 'text') {
+    title.textContent = 'Edit Cell';
+    body.innerHTML = `<textarea id="cell-text-input">${esc(cell.text)}</textarea>`;
+    actions.innerHTML = `
+      <button class="btn btn-danger btn-sm" style="margin-right:auto" onclick="clearCell()">Delete</button>
+      <button class="btn btn-secondary" onclick="closeCellModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCellText()">Save</button>`;
+  } else if (cell.type === 'image') {
+    title.textContent = 'Edit Cell';
+    body.innerHTML = `<img src="${esc(cell.url)}" alt="" style="max-width:100%;border-radius:4px;display:block;margin-bottom:0.5rem">`;
+    actions.innerHTML = `
+      <button class="btn btn-danger btn-sm" style="margin-right:auto" onclick="clearCell()">Delete</button>
+      <button class="btn btn-secondary" onclick="closeCellModal()">Cancel</button>
+      <button class="btn btn-secondary" onclick="pickCellImage()">Replace</button>`;
+  }
+
+  document.getElementById('cell-modal').classList.add('open');
+}
+
+function closeCellModal() {
+  document.getElementById('cell-modal').classList.remove('open');
+}
+
+function showCellTextInput() {
+  document.getElementById('cell-text-area').style.display = '';
+  document.getElementById('cell-text-input').focus();
+  document.getElementById('cell-modal-actions').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeCellModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCellText()">Save</button>`;
+}
+
+async function saveCellText() {
+  const text = document.getElementById('cell-text-input').value;
+  if (!text.trim()) return;
+  const { blockId, row, col } = cellCtx;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/cells/${row}/${col}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  if (res.ok) { closeCellModal(); cellCtx = null; loadPost(); }
+}
+
+async function clearCell() {
+  const { blockId, row, col } = cellCtx;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/cells/${row}/${col}`, {
+    method: 'DELETE'
+  });
+  if (res.ok) { closeCellModal(); cellCtx = null; loadPost(); }
+}
+
+function pickCellImage() {
+  closeCellModal(); // keeps cellCtx intact
+  document.getElementById('cell-image-input').click();
+}
+
+document.getElementById('cell-image-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file || !cellCtx) return;
+  const form = new FormData();
+  form.append('image', file);
+  const { blockId, row, col } = cellCtx;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/cells/${row}/${col}/image`, {
+    method: 'PUT', body: form
+  });
+  if (res.ok) { cellCtx = null; loadPost(); }
+  else { const d = await res.json(); alert('Upload failed: ' + d.error); }
+  e.target.value = '';
+});
+
+// --- Table creation ---
+async function createTable() {
+  const cols = document.querySelector('input[name="cols"]:checked')?.value;
+  if (!cols) return;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/table`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cols: parseInt(cols) })
+  });
+  if (res.ok) { closeTableModal(); loadPost(); }
+}
+
+function openTableModal() { document.getElementById('table-modal').classList.add('open'); }
+function closeTableModal() { document.getElementById('table-modal').classList.remove('open'); }
 
 // --- Text block editing ---
 function startEditText(id) {

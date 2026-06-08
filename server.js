@@ -306,7 +306,139 @@ app.delete('/api/blogs/:blogId/posts/:postId/blocks/:blockId', requireAuth, (req
     const imgPath = path.join(dir, 'images', removed.filename);
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   }
+  if (removed.type === 'table') {
+    removed.rows.forEach(row => row.forEach(cell => {
+      if (cell && cell.type === 'image' && cell.filename) {
+        const imgPath = path.join(dir, 'images', cell.filename);
+        if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+      }
+    }));
+  }
 
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Create a table block
+app.post('/api/blogs/:blogId/posts/:postId/blocks/table', requireAuth, (req, res) => {
+  const cols = parseInt(req.body.cols);
+  if (!cols || cols < 1 || cols > 3) return res.status(400).json({ error: 'cols must be 1–3' });
+
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Post not found' });
+
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = { id: uuidv4(), type: 'table', cols, rows: [new Array(cols).fill(null)] };
+  content.push(block);
+  writeJson(contentFile, content);
+  res.status(201).json(block);
+});
+
+// Add a row to a table
+app.post('/api/blogs/:blogId/posts/:postId/blocks/:blockId/rows', requireAuth, (req, res) => {
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block) return res.status(404).json({ error: 'Table not found' });
+
+  block.rows.push(new Array(block.cols).fill(null));
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Delete a row from a table
+app.delete('/api/blogs/:blogId/posts/:postId/blocks/:blockId/rows/:row', requireAuth, (req, res) => {
+  const rowIdx = parseInt(req.params.row);
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block || rowIdx < 0 || rowIdx >= block.rows.length) return res.status(404).json({ error: 'Row not found' });
+
+  block.rows[rowIdx].forEach(cell => {
+    if (cell && cell.type === 'image' && cell.filename) {
+      const imgPath = path.join(dir, 'images', cell.filename);
+      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    }
+  });
+  block.rows.splice(rowIdx, 1);
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Set a cell to text
+app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/cells/:row/:col', requireAuth, (req, res) => {
+  const rowIdx = parseInt(req.params.row);
+  const colIdx = parseInt(req.params.col);
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'Text required' });
+
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block || !block.rows[rowIdx] || block.rows[rowIdx][colIdx] === undefined) {
+    return res.status(404).json({ error: 'Cell not found' });
+  }
+
+  const old = block.rows[rowIdx][colIdx];
+  if (old && old.type === 'image' && old.filename) {
+    const imgPath = path.join(dir, 'images', old.filename);
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+  }
+
+  block.rows[rowIdx][colIdx] = { type: 'text', text };
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Set a cell to an image
+app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/cells/:row/:col/image', requireAuth, upload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Image required' });
+
+  const rowIdx = parseInt(req.params.row);
+  const colIdx = parseInt(req.params.col);
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block || !block.rows[rowIdx] || block.rows[rowIdx][colIdx] === undefined) {
+    return res.status(404).json({ error: 'Cell not found' });
+  }
+
+  const old = block.rows[rowIdx][colIdx];
+  if (old && old.type === 'image' && old.filename) {
+    const imgPath = path.join(dir, 'images', old.filename);
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+  }
+
+  const url = `/data/blogs/${req.session.username}/${req.params.blogId}/posts/${req.params.postId}/images/${req.file.filename}`;
+  block.rows[rowIdx][colIdx] = { type: 'image', filename: req.file.filename, url };
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Clear a cell
+app.delete('/api/blogs/:blogId/posts/:postId/blocks/:blockId/cells/:row/:col', requireAuth, (req, res) => {
+  const rowIdx = parseInt(req.params.row);
+  const colIdx = parseInt(req.params.col);
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block || !block.rows[rowIdx] || block.rows[rowIdx][colIdx] === undefined) {
+    return res.status(404).json({ error: 'Cell not found' });
+  }
+
+  const old = block.rows[rowIdx][colIdx];
+  if (old && old.type === 'image' && old.filename) {
+    const imgPath = path.join(dir, 'images', old.filename);
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+  }
+
+  block.rows[rowIdx][colIdx] = null;
   writeJson(contentFile, content);
   res.json({ ok: true });
 });
