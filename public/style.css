@@ -159,6 +159,12 @@ form textarea { min-height: 6rem; resize: vertical; }
 .table-cell[draggable] { cursor: grab; }
 .table-cell.drag-over { outline: 2px solid #555; outline-offset: -2px; background: #f0f0f0; }
 
+/* Image captions */
+.image-caption { font-size: 0.85rem; color: #666; font-style: italic; text-align: center; margin-top: 0.4rem; }
+.cell-caption { padding: 0 0.35rem 0.35rem; margin-top: 0.25rem; }
+.caption-edit-area { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem; }
+.caption-edit-area textarea { flex: 1; min-height: 2.5rem; resize: vertical; font-style: italic; font-size: 0.875rem; padding: 0.35rem; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+
 /* Insert gutters */
 .gutter {
   height: 16px;

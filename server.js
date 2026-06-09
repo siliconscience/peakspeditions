@@ -258,6 +258,18 @@ app.delete('/api/blogs/:blogId/posts/:postId', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Set or clear a caption on an image block
+app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/caption', requireAuth, (req, res) => {
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'image');
+  if (!block) return res.status(404).json({ error: 'Image block not found' });
+  block.caption = req.body.caption || '';
+  writeJson(contentFile, content);
+  res.json(block);
+});
+
 // Update a text block
 app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId', requireAuth, (req, res) => {
   const { text } = req.body;
@@ -479,7 +491,27 @@ app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/cells/:row/:col/image'
   }
 
   const url = `/data/blogs/${req.session.username}/${req.params.blogId}/posts/${req.params.postId}/images/${req.file.filename}`;
+  const oldCaption = (old && old.type === 'image') ? old.caption : undefined;
   block.rows[rowIdx][colIdx] = { type: 'image', filename: req.file.filename, url };
+  if (oldCaption) block.rows[rowIdx][colIdx].caption = oldCaption;
+  writeJson(contentFile, content);
+  res.json({ ok: true });
+});
+
+// Set caption on a cell image
+app.put('/api/blogs/:blogId/posts/:postId/blocks/:blockId/cells/:row/:col/caption', requireAuth, (req, res) => {
+  const rowIdx = parseInt(req.params.row);
+  const colIdx = parseInt(req.params.col);
+  const dir = postDir(req.session.username, req.params.blogId, req.params.postId);
+  const contentFile = path.join(dir, 'content.json');
+  const content = readJson(contentFile);
+  const block = content.find(b => b.id === req.params.blockId && b.type === 'table');
+  if (!block || !block.rows[rowIdx] || !block.rows[rowIdx][colIdx]) {
+    return res.status(404).json({ error: 'Cell not found' });
+  }
+  const cell = block.rows[rowIdx][colIdx];
+  if (cell.type !== 'image') return res.status(400).json({ error: 'Cell is not an image' });
+  cell.caption = req.body.caption || '';
   writeJson(contentFile, content);
   res.json({ ok: true });
 });

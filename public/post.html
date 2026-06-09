@@ -223,11 +223,15 @@ function renderBlock(b) {
         <div class="block-label">Image${sel ? '' : ' &nbsp;<span class="edit-hint">click to manage</span>'}</div>
         <img src="${esc(b.url)}" alt="">
         ${sel ? `
+        <div class="caption-edit-area" onclick="event.stopPropagation()">
+          <textarea id="cap-${esc(b.id)}" placeholder="Add a caption…">${esc(b.caption || '')}</textarea>
+          <button class="btn btn-secondary btn-sm" onclick="saveCaption('${esc(b.id)}')">Save caption</button>
+        </div>
         <div class="block-image-actions" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" onclick="startReplaceImage('${esc(b.id)}')">Replace</button>
           <button class="btn btn-danger btn-sm" onclick="deleteBlock('${esc(b.id)}')">Delete</button>
           <button class="btn btn-secondary btn-sm" onclick="deselectImage()">Cancel</button>
-        </div>` : ''}
+        </div>` : (b.caption ? `<p class="image-caption">${esc(b.caption)}</p>` : '')}
       </div>`;
   }
   if (b.type === 'table') {
@@ -270,7 +274,10 @@ function renderTableCell(blockId, row, col, cell, flatIdx) {
     return `<td class="table-cell table-cell-filled" onclick="${onclick}" ${drag}><p>${esc(cell.text)}</p></td>`;
   }
   if (cell.type === 'image') {
-    return `<td class="table-cell table-cell-filled" onclick="${onclick}" ${drag}><img src="${esc(cell.url)}" alt="" class="cell-img"></td>`;
+    return `<td class="table-cell table-cell-filled" onclick="${onclick}" ${drag}>
+      <img src="${esc(cell.url)}" alt="" class="cell-img">
+      ${cell.caption ? `<p class="image-caption cell-caption">${esc(cell.caption)}</p>` : ''}
+    </td>`;
   }
   return `<td class="table-cell" ${drag}></td>`;
 }
@@ -358,7 +365,12 @@ function openCellModal(blockId, row, col) {
       <button class="btn btn-primary" onclick="saveCellText()">Save</button>`;
   } else if (cell.type === 'image') {
     title.textContent = 'Edit Cell';
-    body.innerHTML = `<img src="${esc(cell.url)}" alt="" style="max-width:100%;border-radius:4px;display:block;margin-bottom:0.5rem">`;
+    body.innerHTML = `
+      <img src="${esc(cell.url)}" alt="" style="max-width:100%;border-radius:4px;display:block;margin-bottom:0.75rem">
+      <div class="caption-edit-area">
+        <textarea id="cell-caption-input" placeholder="Add a caption…">${esc(cell.caption || '')}</textarea>
+        <button class="btn btn-secondary btn-sm" onclick="saveCellCaption()">Save caption</button>
+      </div>`;
     actions.innerHTML = `
       <button class="btn btn-danger btn-sm" style="margin-right:auto" onclick="clearCell()">Delete</button>
       <button class="btn btn-secondary" onclick="closeCellModal()">Cancel</button>
@@ -388,6 +400,17 @@ async function saveCellText() {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
+  });
+  if (res.ok) { closeCellModal(); cellCtx = null; loadPost(); }
+}
+
+async function saveCellCaption() {
+  const caption = document.getElementById('cell-caption-input')?.value || '';
+  const { blockId, row, col } = cellCtx;
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${blockId}/cells/${row}/${col}/caption`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ caption })
   });
   if (res.ok) { closeCellModal(); cellCtx = null; loadPost(); }
 }
@@ -471,6 +494,16 @@ function toggleImageSelect(id) {
 function deselectImage() {
   selectedImageId = null;
   renderContent(postContent);
+}
+
+async function saveCaption(id) {
+  const ta = document.getElementById(`cap-${id}`);
+  const res = await fetch(`/api/blogs/${blogId}/posts/${postId}/blocks/${id}/caption`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ caption: ta ? ta.value : '' })
+  });
+  if (res.ok) loadPost();
 }
 
 function startReplaceImage(id) {
